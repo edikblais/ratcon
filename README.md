@@ -36,6 +36,11 @@ ncomm_helper.R
 timbr.m
   MATLAB implementation of the TIMBR (transcriptionally-inferred metabolic biomarker response) algorithm
 
+ncomm_blais_xls2model.m
+  Modified version of xls2model from the COBRA toolbox (www.github.com/opencobra/cobratoolbox) 
+  that fixes a minor bug associated with importing Excel-formatted versions 
+  of rat and human metabolic networks in the ratcon database
+
 ncomm_blais_model2irrev.m
   Modified version of convertToIrreversible from the COBRA toolbox (www.github.com/opencobra/cobratoolbox) 
   that facilitates the mapping of TIMBR reaction weights to irreversible reactions
