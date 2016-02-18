@@ -1,3 +1,56 @@
+# This script is involved in generating biomarker predictions 
+# based on gene expression changes using the new algorithm,
+# TIMBR (Transcriptionally-Inferred Biomarker Response).
+# 
+# This script utilizes GPR rules from rat and human metabolic networks and 
+# gene expression changes from rat and human hepatocytes treated with 
+# various pharmaceutical compounds and environmental toxicants.
+# Prior to summarizing gene exprssion changes into TIMBR reaction weights,
+# gene expression fold changes (logfc) and false discovery-rate adjusted
+# q-values (FDR) should be calculated in the R/Bioconductor
+# programming environment.
+
+# In this script, each set of gene expression changes (organism/compound/time/dose)
+# is summarized into TIMBR reaction weights that represent the relative 'cost'
+# of carrying flux through a reaction in both treatment and control conditions. 
+# TIMBR reaction weights generated in this script can be applied to simulate
+# the global network demand (total cost across all reactions) associated with 
+# performing a metabolic task such as producing potential metabolic biomarker 
+# in both the treatment and control settings for a given treatment strategy. 
+
+# Most data/code needed to reproduce TIMBR reaction weights are available 
+# as Supplementary Tables/Datasets or on the ratcon GitHub website:
+# www.github.com/edikblais/ratcon
+# Raw gene expression microarray data can be obtained from Open TG-GATEs:
+# Open Toxicogenomics Project-Genomics Assisted Toxicity Evaluation System
+# http://www.ncbi.nlm.nih.gov/pubmed/25313160.
+# http://toxico.nibio.go.jp/english/index.html
+# Raw gene expression microarray data are also available from ArrayExpress:
+# E-MTAB-797 - Transcription profiling by array of rat hepatocytes 
+# treated with approximately 130 chemicals in vitro
+# https://www.ebi.ac.uk/arrayexpress/experiments/E-MTAB-797/
+# E-MTAB-798 - Transcription profiling by array of human hepatocytes 
+# treated with approximately 130 chemicals in vitro
+# https://www.ebi.ac.uk/arrayexpress/experiments/E-MTAB-798/
+
+# TIMBR predictions can be reproduced by running the following scripts:
+# 1. ncomm_blais_expression_preprocessing.R
+#   Inputs raw expression data
+#   Outputs gene expression changes
+#   Helper functions: ncomm_helper.R
+# 2. ncomm_blais_timbr_weights.R
+#   Inputs gene expression changes, rat and human GPR rules
+#   Outputs TIMBR reaction weights
+#   Helper functions: ncomm_helper.R
+# 3. ncomm_blais_timbr_predictions.m
+#   Inputs TIMBR reaction weights, rat and human metabolic networks
+#   Outputs raw TIMBR predictions
+#   Helper functions: timbr.m
+# 4. ncomm_blais_timbr_analysis.R
+#   Inputs raw TIMBR predictions
+#   Outputs normalized TIMBR production scores, manuscript figures
+#   Helper functions: ncomm_helper.R
+
 
 options(java.parameters = "-Xmx4g")
 options(stringsAsFactors = FALSE)
@@ -10,15 +63,9 @@ library(dplyr)
 library(ggplot2)
 library(xlsx)
 
-path.matlab.directory = ""
-path.rcode.directory = ""
 path.manuscript.directory = ""
-path.expression.directory = ""
-
-gpr.color = c(`non-enzymatic` = "#7F7F7F", shared = "#674EA7", 
-              `rat-specific` = "#C0504D", `human-specific` = "#4F81BD",
-              rno = "#C0504D", hsa = "#4F81BD", 
-              similar = "#674EA7", opposite = "#F79646")
+path.efit.directory = ""
+path.weights.directory = ""
 
 rxn.info.load = read.xlsx2(paste0(path.manuscript.directory,"ncomm_blais_supplementary_table3.xlsx"),
                            sheetIndex = 1, startRow = 2) %>% as.tbl
@@ -43,6 +90,20 @@ rxn.gene = rxn.info %>% filter(enabled) %>%
 # all gene_id values should be integers
 rxn.gene %>% count(grepl("^[0-9]+$",gene_id))
 
+# Specify gene expression changes to load. 
+# In this script, only caffeine-induced expression changes
+# for rat and human hepatocytes are loaded as examples.
+# Each set of expression changes is stored in a separate text file.
+# The filename is based on the following information separated by "_": 
+#   organism (hsa = human; rno = rat)
+#   cell type (hep = hepatocytes)
+#   treatment duration (t1 = 2 hours; t2 = 8 hours; t3 = 24 hours)
+#   treatment dosing strategy (one = single dose; rep = repeated dose)
+#   treatment compound (e.g. caffeine; acetaminophen)
+#   treatment dose (d1 = low; d2 = medium; d3 = high)
+#   feature type (gene)
+#   genefilter method (eset = featureFilter; nset = nsFilter; core = no filtering)
+#   limma method (robust = robust linear fit; ls = least squares fit)
 
 differential.expression.info = data_frame(
   efit_root = c(#"hsa_hep_t2_one_caffeine_d1_gene_efit_robust",
@@ -51,12 +112,19 @@ differential.expression.info = data_frame(
     "rno_hep_t2_one_caffeine_d1_gene_efit_robust",
     "rno_hep_t2_one_caffeine_d2_gene_efit_robust",
     "rno_hep_t2_one_caffeine_d3_gene_efit_robust")) %>% 
-  mutate(efit_file = paste0(path.expression.directory,efit_root,".txt.gz")) %>%
+  mutate(efit_file = paste0(path.efit.directory,efit_root,".txt.gz")) %>%
   mutate(organism_id = gsub("_.*","",efit_root),
          dose_id = gsub(".*_","",gsub("_gene_.*","",efit_root)),
          drug_id = gsub("_.*","",gsub(".*_one_","",efit_root)),
          time_id = gsub("_.*","",gsub(".*_hep_","",efit_root)))
 
+# Alternatively, load all differential expression info
+# differential.expression.info = paste0(path.efit.directory, "ncomm_blais_limma_info.txt.gz") %>% 
+# read.table(sep = "\t", quote = "", header = T, stringsAsFactors = F, check.names = F) %>% ef_df
+
+
+
+# Load gene expression changes
 differential.expression.load = differential.expression.info %>% 
   with(setNames(efit_file, efit_root)) %>% 
   lapply(read.table,sep = "\t",quote = "", header = T,comment.char = "",
@@ -66,8 +134,8 @@ differential.expression.load = differential.expression.info %>%
          feature_id = as.character(feature_id)) %>%
   left_join(differential.expression.info)
 
-# 2175 human genes and 1927 rat genes 
-# map to these two expression datasets
+# 2175 human genes and 1927 rat genes map to 
+# the gene expression microarray chipsets
 differential.expression.load %>% 
   select(organism_id, gene_id) %>% distinct %>%
   count(organism_id, gene_id %in% c(rxn.gene[["gene_id"]]))
@@ -90,14 +158,27 @@ metabolic.differential.expression = differential.expression.load %>%
 # so we manually selected treatments that induced similar 
 # numbers of differentially expressed genes to make 
 # TIMBR predictions more comparable. For caffeine, we selected 
-# dose 2 (d2) for rats and dose 3 (d3) for humans.
+# dose 2 (d2) for rats and dose 3 (d3) for humans. 
+# We also examined volcano plots and summaries of gene expression changes
+# to determine whether the distribution of log2 fold changes were 
+# disproportionately upregulated or downregulated
 metabolic.differential.expression %>% 
   select(efit_id, n_up, n_dn, n_significant, pct_significant, efit_ok) %>% 
   distinct %>% data.frame
 
+metabolic.differential.expression %>%
+  filter(efit_id %in% c("rno_hep_t2_one_caffeine_d2_gene_efit_robust")) %>% 
+  ggplot(aes(x = logfc, y = -log10(fdr))) + geom_point(alpha = 0.3)
 
-rxn.gene %>% select(rxn_id, rxn_enzymatic) %>% distinct
-
+## Calculate default TIMBR reaction weights
+# Default TIMBR reaction weights are base values between 1 and 8 that are 
+# multiplied by reaction-level values based on summarized gene expression changes.
+# Default weights are doubled for reactions that are non-enzymatic (no genes required)
+# Default weights are doubled for reactions that are not backed by literature evidence
+# Default weights are doubled for reactions involved in transport/exchange to reduce 
+# the usage of metabolic routes that frequently jump between compartments or 
+# metabolic routes that involve long chains of symport/antiport reactions to drive 
+# metabolite transport across compartments.
 rxn.pubmed = rxn.info %>% filter(enabled) %>% select(rxn_id, pubmed_id) %>% 
   melt(c("rxn_id")) %>% ef_df %>% 
   mutate(value = gsub("\\-","",value)) %>% 
@@ -147,6 +228,8 @@ timbr.weights = timbr.weights.list %>% bind_rows
 
 timbr.weights %>% with(qplot(timbr_weight_ctl, timbr_weight_trt))
 
+# Simulating TIMBR predictions requires an irreversible metabolic network, which 
+# appends *_f or *_r to each reaction identifier in the forward or reverse direction
 rxn.irreversible = bind_rows(list(
   timbr.weights %>% select(rxn_id) %>% distinct %>% mutate(irxn_id = paste0(rxn_id,"_f")),
   timbr.weights %>% select(rxn_id) %>% distinct %>% mutate(irxn_id = paste0(rxn_id,"_r"))))
@@ -155,6 +238,8 @@ timbr.weights.irreversible = bind_rows(list(
   timbr.weights %>% mutate(rxn_irreversible = paste0(rxn_id,"_f")),
   timbr.weights %>% mutate(rxn_irreversible = paste0(rxn_id,"_r"))))
 
+# Organize reaction weights for each individual condition:
+# (treatment/control, organism, compound, treatment dose, treatment duration)
 rno.timbr.weights = bind_rows(list(
   timbr.weights.irreversible  %>%
     filter(organism_id == "rno") %>% 
@@ -177,7 +262,9 @@ hsa.timbr.weights = bind_rows(list(
     select(timbr_id, organism_id, rxn_id, rxn_irreversible, rxn_weight = timbr_weight_trt))) %>%
   dcast(organism_id + rxn_id + rxn_irreversible ~ timbr_id, value.var = "rxn_weight") %>% ef_df
 
-write.table(rno.timbr.weights, file = paste0(path.matlab.directory,"ncomm_blais_timbr_weights_rno.txt"), 
+# Save outputs in a folder than can be accessed by MATLAB
+write.table(rno.timbr.weights, file = paste0(path.weights.directory,"ncomm_blais_timbr_weights_rno.txt"), 
             sep = "\t", quote = F, row.names = F)
-write.table(hsa.timbr.weights, file = paste0(path.matlab.directory,"ncomm_blais_timbr_weights_hsa.txt"), 
+write.table(hsa.timbr.weights, file = paste0(path.weights.directory,"ncomm_blais_timbr_weights_hsa.txt"), 
             sep = "\t", quote = F, row.names = F)
+# End
