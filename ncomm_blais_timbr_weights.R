@@ -120,7 +120,11 @@ differential.expression.info = data_frame(
 
 # Alternatively, load all differential expression info
 # differential.expression.info = paste0(path.efit.directory, "ncomm_blais_limma_info.txt.gz") %>% 
-# read.table(sep = "\t", quote = "", header = T, stringsAsFactors = F, check.names = F) %>% ef_df
+#   read.table(sep = "\t", quote = "", header = T, stringsAsFactors = F, check.names = F) %>% ef_df %>% 
+#   mutate(eset_folder = path.eset.directory) %>% 
+#   ef_dataset_file_check %>% 
+#   mutate(efit_folder = path.efit.directory) %>% 
+#   ef_limma_file_check
 
 
 
