@@ -34,7 +34,7 @@
 # https://www.ebi.ac.uk/arrayexpress/experiments/E-MTAB-798/
 
 # TIMBR predictions can be reproduced by running the following scripts:
-# 1. ncomm_blais_expression_preprocessing.R
+# 1. ncomm_blais_timbr_expression.R
 #   Inputs raw expression data
 #   Outputs gene expression changes
 #   Helper functions: ncomm_helper.R
