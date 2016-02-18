@@ -13,25 +13,33 @@ This script was used to generate Fig. 2a and Supplementary Fig. 3. For Supplemen
 ### ncomm_blais_timbr_expression.R
 
   Inputs raw gene expression microarray data
+  
   Outputs gene expression changes
+  
   Helper functions: ncomm_helper.R
 
 ### ncomm_blais_timbr_weights.R
 
   Inputs gene expression changes, rat and human GPR rules
+  
   Outputs TIMBR reaction weights
+  
   Helper functions: ncomm_helper.R
 
 ### ncomm_blais_timbr_predictions.m
 
   Inputs TIMBR reaction weights, rat and human metabolic networks
+  
   Outputs raw TIMBR predictions
+  
   Helper functions: timbr.m and ncomm_blais_model2irrev.m
 
 ### ncomm_blais_timbr_analysis.R
 
   Inputs raw TIMBR predictions
+  
   Outputs normalized TIMBR production scores, manuscript figures
+  
   Helper functions: ncomm_helper.R
 
 ## Helper function files:
