@@ -12,7 +12,7 @@ library(reshape2)
 library(dplyr)
 library(ggplot2)
 
-path.manuscript.directory = "E:/sync/Dropbox/2016_01_ncomm_submission/"
+path.manuscript.directory = ""
 
 gpr.color = c(`non-enzymatic` = "#7F7F7F", shared = "#674EA7", 
               `rat-specific` = "#C0504D", `human-specific` = "#4F81BD",
