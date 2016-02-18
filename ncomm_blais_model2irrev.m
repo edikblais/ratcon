@@ -1,9 +1,10 @@
 function [modelIrrev,matchRev,rev2irrev,irrev2rev] = ncomm_blais_model2irrev(model)
-%convertToIrreversible Convert model to irreversible format. This version,
-% ncomm_blais_model2irrev was modified to resolve some bugs from a previous
-% version from the COBRA toolbox {www.github.com/opencobra/cobratoolbox}.
+%ncomm_blais_model2irrev Convert model to irreversible format. 
+% ncomm_blais_model2irrev is modified version of convertToIrreversible 
+% from the COBRA toolbox (www.github.com/opencobra/cobratoolbox) 
+% that facilitates the mapping of TIMBR reaction weights to irreversible reactions
 %
-% [modelIrrev,matchRev,rev2irrev,irrev2rev] = convertToIrreversible(model)
+% [modelIrrev,matchRev,rev2irrev,irrev2rev] = ncomm_blais_model2irrev(model)
 %
 %INPUT
 % model         COBRA model structure
@@ -26,6 +27,8 @@ function [modelIrrev,matchRev,rev2irrev,irrev2rev] = ncomm_blais_model2irrev(mod
 %
 % Modified by Markus Herrgard 7/25/05
 % Modified by Jan Schellenberger 9/9/09 for speed.
+% Modified by Edik Blais 2/01/16 for implementing TIMBR 
+% with rat and human metabolic networks (www.github.com/edikblais/ratcon)
 
 %declare variables
 modelIrrev.S = spalloc(size(model.S,1),0,2*nnz(model.S));
